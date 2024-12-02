@@ -15,7 +15,6 @@ int main() {
     int right_list[INPUT_LINE_COUNT];
 
     // read file input
-    char line[32];
     FILE *input_file = nullptr;
     if (!fopen_s(&input_file, INPUT_FILENAME, "r")) {}
     int i = 0;

@@ -31,10 +31,11 @@ bool compute_report_safety(const report_t *report) {
 }
 
 bool compute_report_safety_dampened(const report_t *report) {
-    for (int removed_index = -1; removed_index < report->level_count; ++removed_index) {
-        if (removed_index == -1 && compute_report_safety(report)) {
-            return true;
-        }
+    if (compute_report_safety(report)) {
+        return true;
+    }
+
+    for (int removed_index = 0; removed_index < report->level_count; ++removed_index) {
         report_t fake_report = {};
 
         fake_report.level_count = report->level_count - 1;
