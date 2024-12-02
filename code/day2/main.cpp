@@ -11,14 +11,13 @@
 struct report_t {
     int levels[10];
     int level_count;
-    bool is_safe;
 };
 
-bool compute_report_safety(report_t *report) {
+bool compute_report_safety(const report_t *report) {
     int increase_factor = 0;
-    for (int j = 1; j < report->level_count; ++j) {
-        const int previous_level = report->levels[j - 1];
-        const int current_level = report->levels[j];
+    for (int i = 1; i < report->level_count; ++i) {
+        const int previous_level = report->levels[i - 1];
+        const int current_level = report->levels[i];
         if (increase_factor == 0) {
             increase_factor = (previous_level < current_level) ? -1 : 1;
         }
@@ -29,6 +28,28 @@ bool compute_report_safety(report_t *report) {
         }
     }
     return true;
+}
+
+bool compute_report_safety_dampened(const report_t *report) {
+    for (int removed_index = -1; removed_index < report->level_count; ++removed_index) {
+        if (removed_index == -1 && compute_report_safety(report)) {
+            return true;
+        }
+        report_t fake_report = {};
+
+        fake_report.level_count = report->level_count - 1;
+        int offset = 0;
+        for (int i = 0; i < fake_report.level_count; ++i) {
+            if (i == removed_index) {
+                offset = 1;
+            }
+            fake_report.levels[i] = report->levels[i + offset];
+        }
+        if (compute_report_safety(&fake_report)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 int main() {
@@ -44,16 +65,15 @@ int main() {
                                           &reports[i].levels[1], &reports[i].levels[2], &reports[i].levels[3],
                                           &reports[i].levels[4], &reports[i].levels[5], &reports[i].levels[6],
                                           &reports[i].levels[7], &reports[i].levels[8], &reports[i].levels[9]);
-        reports[i].is_safe = true;
         ++i;
     }
 
     int total_safe = 0;
     for (i = 0; i < INPUT_LINE_COUNT; ++i) {
         report_t *report = &reports[i];
-        report->is_safe = compute_report_safety(report);
-        printf("Report #%d is %s\n", i, report->is_safe ? "SAFE" : "UNSAFE");
-        if (report->is_safe) {
+        bool report_is_safe = compute_report_safety_dampened(report);
+        printf("Report #%d is %s\n", i, report_is_safe ? "SAFE" : "UNSAFE");
+        if (report_is_safe) {
             total_safe += 1;
         }
     }
