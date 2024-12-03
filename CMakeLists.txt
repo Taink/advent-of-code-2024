@@ -5,3 +5,4 @@ set(CMAKE_CXX_STANDARD 20)
 
 add_executable(day1 code/day1/main.cpp)
 add_executable(day2 code/day2/main.cpp)
+add_executable(day3 code/day3/main.cpp)
