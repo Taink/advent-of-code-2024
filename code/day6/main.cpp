@@ -94,19 +94,20 @@ bool char_is_at_pos(const char grid[DIMENSIONS][DIMENSIONS], const coords_t *pos
 int simulate_guard_route(char grid[DIMENSIONS][DIMENSIONS], guard_t *guard) {
     coords_t next_guard_move = get_guard_front_position(guard);
     printf("[%d;%d]\n", next_guard_move.y, next_guard_move.x);
-    int visits = 0;
+    int visits = 1;
+    set_char(grid, guard->position, VISIT_CHAR);
     while (valid_move(&next_guard_move)) {
-        set_char(grid, guard->position, VISIT_CHAR);
         if (char_is_at_pos(grid, &next_guard_move, BLOCK_CHAR)) {
             rotate_guard(guard);
             next_guard_move = get_guard_front_position(guard);
             continue;
         }
+        guard->position->x = next_guard_move.x;
+        guard->position->y = next_guard_move.y;
         if (!char_is_at_pos(grid, &next_guard_move, VISIT_CHAR)) {
             ++visits;
         }
-        guard->position->x = next_guard_move.x;
-        guard->position->y = next_guard_move.y;
+        set_char(grid, guard->position, VISIT_CHAR);
         next_guard_move = get_guard_front_position(guard);
         printf("[%d;%d]\n", next_guard_move.y, next_guard_move.x);
     }
@@ -139,7 +140,7 @@ int main() {
     }
 
     // IMPORTANT: there seems to be an issue where the last position is not marked properly
-    positions = simulate_guard_route(grid, &guard) + 1;
+    positions = simulate_guard_route(grid, &guard);
 
     for (y = 0; y < DIMENSIONS; ++y) {
         for (int x = 0; x < DIMENSIONS; ++x) {
