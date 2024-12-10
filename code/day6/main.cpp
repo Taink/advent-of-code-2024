@@ -12,7 +12,13 @@
 constexpr char GUARD_CHAR = '^';
 constexpr char EMPTY_CHAR = '.';
 constexpr char BLOCK_CHAR = '#';
+constexpr char TEMP_BLOCK_CHAR = 'O';
 constexpr char VISIT_CHAR = 'X';
+
+constexpr char UP_CHAR = 'U';
+constexpr char DOWN_CHAR = 'D';
+constexpr char LEFT_CHAR = 'L';
+constexpr char RIGHT_CHAR = 'R';
 
 struct coords_t {
     int x;
@@ -23,6 +29,23 @@ constexpr coords_t DIR_UP = {0, -1};
 constexpr coords_t DIR_DOWN = {0, 1};
 constexpr coords_t DIR_LEFT = {-1, 0};
 constexpr coords_t DIR_RIGHT = {1, 0};
+
+constexpr char direction_to_char(const direction_t direction) {
+    switch (direction) {
+        case UP: {
+            return UP_CHAR;
+        }
+        case DOWN: {
+            return DOWN_CHAR;
+        }
+        case LEFT: {
+            return LEFT_CHAR;
+        }
+        default: {
+            return RIGHT_CHAR;
+        }
+    }
+}
 
 constexpr coords_t direction_to_coords(const direction_t direction) {
     switch (direction) {
@@ -78,7 +101,7 @@ constexpr coords_t get_guard_front_position(const guard_t *guard) {
     return result;
 }
 
-char get_char(const char grid[DIMENSIONS][DIMENSIONS], const coords_t *pos) {
+constexpr char get_char(const char grid[DIMENSIONS][DIMENSIONS], const coords_t *pos) {
     char result = grid[pos->y][pos->x];
     return result;
 }
@@ -87,11 +110,24 @@ void set_char(char grid[DIMENSIONS][DIMENSIONS], const coords_t *pos, const char
     grid[pos->y][pos->x] = c;
 }
 
-bool char_is_at_pos(const char grid[DIMENSIONS][DIMENSIONS], const coords_t *pos, const char test_char) {
+constexpr bool char_is_at_pos(const char grid[DIMENSIONS][DIMENSIONS], const coords_t *pos, const char test_char) {
     return valid_move(pos) && get_char(grid, pos) == test_char;
 }
 
-int simulate_guard_route(char grid[DIMENSIONS][DIMENSIONS], guard_t *guard) {
+constexpr bool pos_is_blocked(const char grid[DIMENSIONS][DIMENSIONS], const coords_t *pos) {
+    return char_is_at_pos(grid, pos, BLOCK_CHAR) ||
+           char_is_at_pos(grid, pos, TEMP_BLOCK_CHAR);
+}
+
+constexpr bool pos_is_visited(const char grid[DIMENSIONS][DIMENSIONS], const coords_t *pos) {
+    return char_is_at_pos(grid, pos, UP_CHAR) ||
+           char_is_at_pos(grid, pos, DOWN_CHAR) ||
+           char_is_at_pos(grid, pos, LEFT_CHAR) ||
+           char_is_at_pos(grid, pos, RIGHT_CHAR) ||
+           char_is_at_pos(grid, pos, VISIT_CHAR);
+}
+
+int count_guard_positions(char grid[DIMENSIONS][DIMENSIONS], guard_t *guard) {
     coords_t next_guard_move = get_guard_front_position(guard);
     printf("[%d;%d]\n", next_guard_move.y, next_guard_move.x);
     int visits = 1;
@@ -113,6 +149,69 @@ int simulate_guard_route(char grid[DIMENSIONS][DIMENSIONS], guard_t *guard) {
     }
     printf("STOP\n");
     return visits;
+}
+
+void reset_grid_to_input(char grid[DIMENSIONS][DIMENSIONS]) {
+    for (int y = 0; y < DIMENSIONS; ++y) {
+        for (int x = 0; x < DIMENSIONS; ++x) {
+            switch (grid[y][x]) {
+                case UP_CHAR:
+                case DOWN_CHAR:
+                case LEFT_CHAR:
+                case RIGHT_CHAR:
+                case VISIT_CHAR:
+                case TEMP_BLOCK_CHAR:
+                case GUARD_CHAR:
+                    grid[y][x] = EMPTY_CHAR;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+}
+
+bool guard_route_has_loop(char grid[DIMENSIONS][DIMENSIONS], guard_t *guard) {
+    coords_t next_guard_move = get_guard_front_position(guard);
+    set_char(grid, guard->position, direction_to_char(guard->orientation));
+    while (valid_move(&next_guard_move)) {
+        if (char_is_at_pos(grid, &next_guard_move, direction_to_char(guard->orientation))) {
+            return true;
+        }
+        if (pos_is_blocked(grid, &next_guard_move)) {
+            rotate_guard(guard);
+            next_guard_move = get_guard_front_position(guard);
+            continue;
+        }
+        guard->position->x = next_guard_move.x;
+        guard->position->y = next_guard_move.y;
+        set_char(grid, guard->position, direction_to_char(guard->orientation));
+        next_guard_move = get_guard_front_position(guard);
+    }
+    return false;
+}
+
+int count_looping_obstructions(char grid[DIMENSIONS][DIMENSIONS], guard_t *guard) {
+    const coords_t original_guard_position = *guard->position;
+    coords_t obstacle_position = {};
+    int obstacles = 0;
+    for (int y = 0; y < DIMENSIONS; ++y) {
+        obstacle_position.y = y;
+        for (int x = 0; x < DIMENSIONS; ++x) {
+            obstacle_position.x = x;
+            if (char_is_at_pos(grid, &obstacle_position, BLOCK_CHAR)) {
+                continue;
+            }
+            set_char(grid, &obstacle_position, TEMP_BLOCK_CHAR);
+            *guard->position = original_guard_position;
+            guard->orientation = UP;
+            if (guard_route_has_loop(grid, guard)) {
+                ++obstacles;
+            }
+            reset_grid_to_input(grid);
+        }
+    }
+    return obstacles;
 }
 
 int main() {
@@ -139,15 +238,15 @@ int main() {
         ++y;
     }
 
-    // IMPORTANT: there seems to be an issue where the last position is not marked properly
-    positions = simulate_guard_route(grid, &guard);
-
     for (y = 0; y < DIMENSIONS; ++y) {
         for (int x = 0; x < DIMENSIONS; ++x) {
             printf("%c", grid[y][x]);
         }
         printf("\n");
     }
+
+    // positions = count_guard_positions(grid, &guard);
+    positions = count_looping_obstructions(grid, &guard);
 
     printf("positions: %d\n", positions);
 
